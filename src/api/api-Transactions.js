@@ -5,7 +5,7 @@ const Schema=mongoose.Schema;
 const ObjectId = Schema.ObjectId;
 const BASE_URL="/api/v1";
 
-const MONGO_URL="mongodb://localhost:27017/";
+const MONGO_URL="mongodb+srv://ceradudelfin_db_user:qJ9Auk0hXnawTLTI@cluster0.gdjcyc4.mongodb.net/";
 
 try{
     await mongoose.connect(MONGO_URL).then(() => console.log('Connected!'));
