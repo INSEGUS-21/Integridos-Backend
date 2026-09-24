@@ -4,7 +4,8 @@
   "description": "Backend for the bank transaction application requested for PAI 1",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src/index.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +21,8 @@
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.3",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mongoose": "^9.10.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
