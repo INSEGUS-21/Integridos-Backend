@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import fs from 'fs'
 import csv from 'csv-parser';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 
 //tcmaria124_db_user
 //EMGYUOoF7RUKgGWo (si no funciona, usar taitai por que la cambié y no se si se guardo xd)
@@ -50,7 +53,7 @@ export function loadBackendApiUsers(app){
     });
 
     //get de todos los users
-    app.get(URL_BASE_API + "/Users", async (req, res) => {
+    app.get(URL_BASE_API + "/Users", auth, async (req, res) => {
     try{
         let users =  await db.find({});
         res.status(200).json(users);
@@ -61,7 +64,7 @@ export function loadBackendApiUsers(app){
     });
     
     //get de 1 user
-    app.get(URL_BASE_API+"/Users/:id", async (req, res) => {
+    app.get(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
         try{
             let user= await db.findById(req.params.id);
             if(!user){
@@ -77,7 +80,7 @@ export function loadBackendApiUsers(app){
 
     //post 
 
-    app.post(URL_BASE_API+"/Users/", async (req, res) => {
+    app.post(URL_BASE_API+"/Users/", auth, async (req, res) => {
         const {username, password_resume} = req.body;
         if(!username || !password_resume){
            return res.sendStatus(400);
@@ -97,9 +100,61 @@ export function loadBackendApiUsers(app){
 
     //post prohibido
 
-    app.post(URL_BASE_API+"/Users/:id", async (req, res) => {
+    app.post(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
         res.sendStatus(405);
     });
+
+    //login
+    app.post(URL_BASE_API+"/login", async (req, res) => {
+        const {username, password} = req.body;
+        if(!username || !password){
+           return res.status(400).send("missing fields");
+        }
+        
+        try{
+        const user = await db.findOne({username}); //comprueba que existe usuario   
+
+        //agregar aqui conversion a hash 
+
+        if(!user || user.password_resume !== password){
+            return res.status(401).send("unautorized");
+        }
+        const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '1h' }); //crea token
+        res.status(200).json({ token });
+        }catch{
+            return res.sendStatus(500);
+        }
+    });
+
+
+    //register
+    app.post(URL_BASE_API+"/register", async (req, res) => {
+        const {username, password} = req.body;
+        if(!username || !password){
+           return res.status(400).send("missing fields");
+        }
+        //implementar mas tarde condiciones para contraseña
+         try {
+            if (await db.findOne({ username })) {
+            return res.status(409).send("User already exists")};
+            
+            //agregar aqui conversion a hash 
+        
+            await db.create({ username, password_resume: password});
+            res.status(201).send("user created");
+        } catch (err) {
+            res.sendStatus(500);
+    }
+    });
+
+    //Añadir auth como segundo argumento en las rutas que a proteger:
+    //ejemplo: app.get(URL_BASE_API + "/Users", auth, async (req, res) => { ... });
+    //cuando se agregue hash, convertir a hash las contraseñas en el post normal
+
+
+    //validacion contraseña
+
+
 
 
 }
