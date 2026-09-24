@@ -104,7 +104,23 @@ export function loadBackendApiUsers(app){
         res.sendStatus(405);
     });
 
-    //delete
+    //delete de 1 user
+    app.delete(URL_BASE_API + "/Users/:id", auth, async (req, res) => {
+        try {
+            const deleted = await db.findByIdAndDelete(req.params.id);
+            if (!deleted) {
+                return res.status(404).send("no existe usuario");
+            }
+            res.sendStatus(204);
+        } catch (err) {
+            console.error(err);
+            res.sendStatus(500);
+        }
+    });
+
+
+
+    //delete TODO
 
     app.delete(URL_BASE_API + "/Users", auth, async (req, res) => {
     try {
