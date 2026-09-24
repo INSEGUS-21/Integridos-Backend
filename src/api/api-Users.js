@@ -53,7 +53,7 @@ export function loadBackendApiUsers(app){
     });
 
     //get de todos los users
-    app.get(URL_BASE_API + "/Users", auth, async (req, res) => {
+    app.get(URL_BASE_API + "/Users", async (req, res) => {
     try{
         let users =  await db.find({});
         res.status(200).json(users);
@@ -140,12 +140,8 @@ export function loadBackendApiUsers(app){
         if(!username || !password){
            return res.status(400).send("missing fields");
         }
-        
         try{
         const user = await db.findOne({username}); //comprueba que existe usuario   
-
-        //agregar aqui conversion a hash 
-
         if(!user || user.password_resume !== password){
             return res.status(401).send("unautorized");
         }
@@ -163,13 +159,10 @@ export function loadBackendApiUsers(app){
         if(!username || !password){
            return res.status(400).send("missing fields");
         }
-        //implementar mas tarde condiciones para contraseña
+        //implementar mas tarde validacion para contraseña
          try {
             if (await db.findOne({ username })) {
             return res.status(409).send("User already exists")};
-            
-            //agregar aqui conversion a hash 
-        
             await db.create({ username, password_resume: password});
             res.status(201).send("user created");
         } catch (err) {
