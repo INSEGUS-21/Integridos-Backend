@@ -1,12 +1,16 @@
 
 import mongoose from 'mongoose';
 import { createNonce, validNonce } from '../services/serviceNonce.js';
+import crypto from 'node:crypto';
+
 
 
 const Schema=mongoose.Schema;
 const BASE_URL="/api/v1";
 
 const MONGO_URL="mongodb+srv://ceradudelfin_db_user:qJ9Auk0hXnawTLTI@cluster0.gdjcyc4.mongodb.net/";
+const  SECRET_KEY='secreto';
+
 
 try{
     await mongoose.connect(MONGO_URL).then(() => console.log('Connected!'));
@@ -19,9 +23,7 @@ const Transaction_scheme=new Schema(
         origin_account:String,
         destination_account:String,
         amount:Number,
-        currency:String,
-        timeStamp:Number,
-        nonce:String
+        currency:String
     }
 );
 
@@ -36,6 +38,7 @@ export const loadTransactionApi=async  (app) =>{
             const data= await Transaction_model.find({});
             return res.status(200).json(data);
         } catch (error) {
+            console.log(error);
             return res.sendStatus(500)
         }
         
@@ -51,16 +54,32 @@ export const loadTransactionApi=async  (app) =>{
                 return res.sendStatus(404)
             }
         } catch (error) {
+            console.log(error);
             return res.sendStatus(500)   
         }        
     })
 
     app.post(BASE_URL+"/transactions", async (req,res)=>{
+
         const nonce = req.headers.nonce;
         const timeStamp = req.headers.timestamp;
+        const hmac=req.headers.hmac;
+
+
+        const hmacBackend=crypto.createHmac('sha256', SECRET_KEY)
+            .update(`${timeStamp}.${nonce}.`).update(req.rawBody).digest();
+        
+        if(!(hmacBackend===hmac)) return res.sendStatus(403);
+
+
+        if (!(req.body.origin_account && req.body.destination_account
+             && req.body.amount && req.body.currency && nonce && timeStamp)) res.sendStatus(400);
+
         try {
-            if (validNonce(nonce, timeStamp)){
-                if (createNonce(nonce,timeStamp)){
+            const isNonceValid=await validNonce(nonce, timeStamp)
+            
+            if (isNonceValid){
+                if (await createNonce(nonce,timeStamp)){
                     await Transaction_model.create(req.body);
                     return res.sendStatus(200);
                 } else {
@@ -70,6 +89,7 @@ export const loadTransactionApi=async  (app) =>{
                 return res.sendStatus(400)
             }
         } catch (error) {
+            console.log(error);
             return res.sendStatus(500);
         }
         
@@ -80,6 +100,7 @@ export const loadTransactionApi=async  (app) =>{
             await Transaction_model.deleteMany({});
             return res.sendStatus(200);
         } catch (error) {
+            console.log(error);
             return res.sendStatus(500);
         }
         
@@ -96,6 +117,7 @@ export const loadTransactionApi=async  (app) =>{
                 return res.sendStatus(404)
             }
         } catch (error) {
+            console.log(error);
             return res.sendStatus(500)   
         }    
     });

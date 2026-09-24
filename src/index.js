@@ -7,7 +7,11 @@ const app=express()
 const PORT=3000;
 
 app.use(cors()); 
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf; // Buffer con los bytes originales
+  }
+}));
 
 
 loadTransactionApi(app);

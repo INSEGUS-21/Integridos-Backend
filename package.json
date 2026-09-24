@@ -22,6 +22,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "crypto": "^1.0.1",
     "csv-parser": "^3.2.1",
     "dotenv": "^18.0.3",
     "express": "^5.2.1",
