@@ -67,7 +67,7 @@ export const loadTransactionApi=async  (app) =>{
 
 
         const hmacBackend=crypto.createHmac('sha256', SECRET_KEY)
-            .update(`${timeStamp}.${nonce}.`).update(req.body).digest();
+            .update(`${timeStamp}.${nonce}.`).update(req.rawBody).digest();
         
         if(!(hmacBackend===hmac)) return res.sendStatus(403);
 
