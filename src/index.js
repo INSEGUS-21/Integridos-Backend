@@ -1,9 +1,10 @@
 import express from 'express';
-import { loadBackendApiUsers } from './api/api-Users.js'; 
+import { loadBackendApiUsers } from './src/api-Users.js'; 
 
 const app = express();
 const PORT = 3000;
 
+app.use(cors()); 
 app.use(express.json());
 loadBackendApiUsers(app);
 
