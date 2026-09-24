@@ -8,20 +8,27 @@ const conn = mongoose.createConnection(MONGO_URI);
 conn.on('connected', () => console.log('Conectado a MongoDB (Users)'));
 conn.on('error', (err) => console.error('Error conectando a MongoDB (Users):', err));
 
-const UserSchema= new mongoose.Schema({
+const NonceSchema= new mongoose.Schema({
     nonce: String,
-    timeStamp: String 
+    timeStamp: Number 
 });
 
 
-const db = conn.model('Nonce', UserSchema);
+const db = conn.model('Nonce', NonceSchema);
 
 
 export async function validNonce(nonce_input, timeStamp_input){
     try{
+
         const timeStampNow = Date.now();
-        if ((timeStampNow - timeStamp_input) <= 300000){
+        const diff=timeStampNow - timeStamp_input;
+
+        console.log(diff);
+
+
+        if (Math.abs(diff) <= 300000){
             const existing = await db.findOne({nonce:nonce_input});
+            console.log(existing);
             if(existing){
                 return false;
             }else{
