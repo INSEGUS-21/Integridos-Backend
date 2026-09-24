@@ -8,7 +8,7 @@ import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 //tcmaria124_db_user
 //EMGYUOoF7RUKgGWo (si no funciona, usar taitai por que la cambié y no se si se guardo xd)
 
-let MONGO_URI= "mongodb+srv://tcmaria124_db_user:EMGYUOoF7RUKgGWo@cluster0.0vjjqfl.mongodb.net/usersDB?appName=Cluster0";
+let MONGO_URI= "mongodb+srv://tcmaria124_db_user:taitai@cluster0.0vjjqfl.mongodb.net/usersDB?appName=Cluster0";
 let URL_BASE_API = "/api/v1";
 
 const conn = mongoose.createConnection(MONGO_URI);
@@ -33,7 +33,7 @@ export function loadBackendApiUsers(app){
             const count = await  db.countDocuments();
             if (count > 0) return res.sendStatus(409);
             const csvData = [];
-            fs.createReadStream('./data/userData.csv')
+            fs.createReadStream('./data/usersData.csv')
             .pipe(csv())
             .on('data', (data) => {csvData.push(data)})
             .on('end', async () => {
@@ -103,6 +103,20 @@ export function loadBackendApiUsers(app){
     app.post(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
         res.sendStatus(405);
     });
+
+    //delete
+
+    app.delete(URL_BASE_API + "/Users", auth, async (req, res) => {
+    try {
+        await db.deleteMany({});
+        res.sendStatus(204);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+    });
+
+
 
     //login
     app.post(URL_BASE_API+"/login", async (req, res) => {
