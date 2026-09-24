@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { loadBackendApiUsers } from './api/api-Users.js'; 
 
 const app = express();
