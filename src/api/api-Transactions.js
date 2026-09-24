@@ -1,9 +1,8 @@
 
 import mongoose from 'mongoose';
-import { createNonce } from '../services/serviceNonce';
+import { createNonce, validNonce } from '../services/serviceNonce.js';
 
 const Schema=mongoose.Schema;
-const ObjectId = Schema.ObjectId;
 const BASE_URL="/api/v1";
 
 const MONGO_URL="mongodb+srv://ceradudelfin_db_user:qJ9Auk0hXnawTLTI@cluster0.gdjcyc4.mongodb.net/";
@@ -16,7 +15,6 @@ try{
 
 const Transaction_scheme=new Schema(
     {
-        tx_id:ObjectId,
         origin_account:String,
         destination_account:String,
         amount:Number,
@@ -28,19 +26,14 @@ const Transaction_scheme=new Schema(
 
 const Transaction_model=mongoose.model("Transaction", Transaction_scheme);
 
-await Transaction_model.createCollection();
-
 export const loadTransactionApi=async  (app) =>{
 
     
 
     app.get(BASE_URL+"/transactions",async  (req,res)=>{
         try {
-            const data= await Transaction_model.find({}).select("-_id");
-
-            const json=await data.json();
-
-            return res.status(200).send(json);
+            const data= await Transaction_model.find({});
+            return res.status(200).json(data);
         } catch (error) {
             return res.sendStatus(500)
         }
@@ -48,12 +41,11 @@ export const loadTransactionApi=async  (app) =>{
     });
 
     app.get(BASE_URL+"/transactions/:id", async (req,res)=>{
-        const id=new ObjectId(req.params.id); 
+        const id= req.params.id; 
         try {
-            const data=await Transaction_model.findOne({tx_id:id}).select("-_id");
+            const data=await Transaction_model.findOne({_id:id});
             if (data){
-                const json=await data.json();
-                return res.status(200).send(json); 
+                return res.status(200).json(data); 
             }else{
                 return res.sendStatus(404)
             }
@@ -63,12 +55,12 @@ export const loadTransactionApi=async  (app) =>{
     })
 
     app.post(BASE_URL+"/transactions", async (req,res)=>{
-        const nonce = req.body.nonce;
-        const timeStamp = req.body.timeStamp;
+        const nonce = req.headers.nonce;
+        const timeStamp = req.headers.timestamp;
         try {
             if (validNonce(nonce, timeStamp)){
                 if (createNonce(nonce,timeStamp)){
-                    await Transaction_model.insertOne(req.body);
+                    await Transaction_model.create(req.body);
                     return res.sendStatus(200);
                 } else {
                     return res.sendStatus(400)
@@ -93,17 +85,22 @@ export const loadTransactionApi=async  (app) =>{
     });
 
     app.delete(BASE_URL+"/transactions/:id", async (req, res)=>{
-        const id=new ObjectId(req.params.id); 
+        const id= req.params.id; 
         try {
-            await Transaction_model.deleteOne({tx_id:id});
-            return res.sendStatus(200); 
+            const iddb=await Transaction_model.findOne({_id:id});
+            if (iddb){
+                await Transaction_model.deleteOne({_id:id});
+                return res.sendStatus(200); 
+            } else{
+                return res.sendStatus(404)
+            }
         } catch (error) {
             return res.sendStatus(500)   
         }    
     });
 
 
-    app.post(BASE_URL+"/transactions:id", (req,res)=>{
+    app.post(BASE_URL+"/transactions/:id", (req,res)=>{
         return res.sendStatus(405);
     });
 
