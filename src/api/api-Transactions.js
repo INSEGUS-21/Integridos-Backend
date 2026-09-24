@@ -1,6 +1,7 @@
 
 import mongoose from 'mongoose';
 import { createNonce } from '../services/serviceNonce';
+import { validNonce } from '../services/serviceNonce';
 
 const Schema=mongoose.Schema;
 const ObjectId = Schema.ObjectId;
