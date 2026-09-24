@@ -3,6 +3,7 @@ import fs from 'fs'
 import csv from 'csv-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { rateLimit } from 'express-rate-limit'
 import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 
 //tcmaria124_db_user
@@ -10,6 +11,34 @@ import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 
 let MONGO_URI= "mongodb+srv://tcmaria124_db_user:taitai@cluster0.0vjjqfl.mongodb.net/usersDB?appName=Cluster0";
 let URL_BASE_API = "/api/v1";
+
+//limitar numero de intentos de login por usuario 
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    limit: 5, // Limit each IP to 5 requests per `window` (here, per 10 minutes).
+    skipSuccessfulRequests: true,
+    skip: function (req, res) {
+    // si no hay username, este intento no cuenta (error 400)
+    if (!req.body.username) {
+        return true;
+    }
+    return false;
+    },
+    keyGenerator: function (req, res) {
+    // contador por nombre de usuario
+    const username = req.body.username;
+    return username;
+    },
+    message: "Has alcanzado el numero de intentos permitidos",
+    standardHeaders: 'draft-8', // draft-6: `RateLimit-*` headers; draft-7 & draft-8: combined `RateLimit` header
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+        
+});
+
+
+
+
+
 
 const conn = mongoose.createConnection(MONGO_URI);
 
@@ -135,7 +164,7 @@ export function loadBackendApiUsers(app){
 
 
     //login
-    app.post(URL_BASE_API+"/login", async (req, res) => {
+    app.post(URL_BASE_API+"/login", limiter, async (req, res) => {
         const {username, password} = req.body;
         if(!username || !password){
            return res.status(400).send("missing fields");
@@ -172,11 +201,8 @@ export function loadBackendApiUsers(app){
 
     //Añadir auth como segundo argumento en las rutas que a proteger:
     //ejemplo: app.get(URL_BASE_API + "/Users", auth, async (req, res) => { ... });
-    //cuando se agregue hash, convertir a hash las contraseñas en el post normal
 
-
-    //validacion contraseña
-
+     
 
 
 
