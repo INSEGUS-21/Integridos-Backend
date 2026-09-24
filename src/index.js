@@ -3,9 +3,6 @@ import cors from 'cors';
 import { loadBackendApiUsers } from './api/api-Users.js'; 
 import { loadTransactionApi } from './api/api-Transactions.js';
 
-
-const express=require('express');
-
 const app=express()
 const PORT = process.env.PORT || 3000;
 
