@@ -7,7 +7,7 @@ import Redis from 'ioredis';
 const app=express()
 const PORT= process.env.PORT ||3000;
 
-const redisClient=new Redis();
+//const redisClient=new Redis();
 
 
 app.use(cors()); 

@@ -64,16 +64,24 @@ export const loadTransactionApi=async  (app) =>{
         const nonce = req.headers.nonce;
         const timeStamp = req.headers.timestamp;
         const hmac=req.headers.hmac;
+        let hmacBuffer;
+        try{
+         hmacBuffer=Buffer.from(hmac, 'hex');
+        }catch(e){
+           return res.sendStatus(403);
+        }
 
+        if(hmacBuffer.length!==hmac.length) return  res.sendStatus(403);
 
         const hmacBackend=crypto.createHmac('sha256', SECRET_KEY)
             .update(`${timeStamp}.${nonce}.`).update(req.rawBody).digest();
         
-        if(!(hmacBackend===hmac)) return res.sendStatus(403);
+            
+        if(!(crypto.timingSafeEqual(hmacBuffer,hmacBackend))) return res.sendStatus(403);
 
 
         if (!(req.body.origin_account && req.body.destination_account
-             && req.body.amount && req.body.currency && nonce && timeStamp)) res.sendStatus(400);
+             && req.body.amount && req.body.currency && nonce && timeStamp))return  res.sendStatus(400);
 
         try {
             const isNonceValid=await validNonce(nonce, timeStamp)
