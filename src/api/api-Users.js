@@ -15,7 +15,7 @@ let URL_BASE_API = "/api/v1";
 //limitar numero de intentos de login por usuario 
 const limiter = rateLimit({
     windowMs: 10 * 60 * 1000, // 10 minutes
-    limit: 5, // Limit each IP to 5 requests per `window` (here, per 10 minutes).
+    limit: 5, // Limit each IP to 5 requests per `window` (here, per 10 minutes). (cambiar valores si hace falta luego y eso)
     skipSuccessfulRequests: true,
     skip: function (req, res) {
     // si no hay username, este intento no cuenta (error 400)
