@@ -6,10 +6,6 @@ import bcrypt from 'bcrypt';
 import { rateLimit } from 'express-rate-limit'
 import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 
-//tcmaria124_db_user
-//EMGYUOoF7RUKgGWo (si no funciona, usar taitai por que la cambié y no se si se guardo xd)
-
-let MONGO_URI= "mongodb+srv://tcmaria124_db_user:taitai@cluster0.0vjjqfl.mongodb.net/usersDB?appName=Cluster0";
 let URL_BASE_API = "/api/v1";
 
 //limitar numero de intentos de login por usuario 
