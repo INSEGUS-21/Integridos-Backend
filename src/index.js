@@ -55,5 +55,5 @@ loadTransactionApi(app, dbTransaction, dbNonce);
 loadBackendApiUsers(app, dbUsers);
 
 app.listen(PORT, () => {
-    console.log("Backend Now Running");
-});
+    console.log(`Backend Now Running on port ${PORT}`);
+});   
