@@ -5,25 +5,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
 
-//tcmaria124_db_user
-//EMGYUOoF7RUKgGWo (si no funciona, usar taitai por que la cambié y no se si se guardo xd)
-
-let MONGO_URI= "mongodb+srv://tcmaria124_db_user:taitai@cluster0.0vjjqfl.mongodb.net/usersDB?appName=Cluster0";
 let URL_BASE_API = "/api/v1";
-
-const conn = mongoose.createConnection(MONGO_URI);
-
-conn.on('connected', () => console.log('Conectado a MongoDB (Users)'));
-conn.on('error', (err) => console.error('Error conectando a MongoDB (Users):', err));
-
-const UserSchema= new mongoose.Schema({
-    username: String,
-    password_resume: String 
-});
-
-
-const db = conn.model('User', UserSchema, 'users-data');
-
 
 export function loadBackendApiUsers(app){
 

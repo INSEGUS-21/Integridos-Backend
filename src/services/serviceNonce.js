@@ -1,33 +1,15 @@
-import mongoose from 'mongoose';
 
-let MONGO_URI= "mongodb+srv://danieldlrf2_db_user:XbeoINbtCRtaS35S@ssii.abhixzn.mongodb.net/?appName=SSII";
-//danieldlrf2_db_user
-//XbeoINbtCRtaS35S
-const conn = mongoose.createConnection(MONGO_URI);
-
-conn.on('connected', () => console.log('Conectado a MongoDB (Users)'));
-conn.on('error', (err) => console.error('Error conectando a MongoDB (Users):', err));
-
-const NonceSchema= new mongoose.Schema({
-    nonce: String,
-    timeStamp: Number 
-});
-
-
-const db = conn.model('Nonce', NonceSchema);
-
-
-export async function validNonce(nonce_input, timeStamp_input){
+export async function validNonce(nonce_input, timeStamp_input, dbNonce){
     try{
 
         const timeStampNow = Date.now();
-        const diff=timeStampNow - timeStamp_input;
+        const diff=timeStampNow - (timeStamp_input * 1000);
 
         console.log(diff);
 
 
         if (Math.abs(diff) <= 300000){
-            const existing = await db.findOne({nonce:nonce_input});
+            const existing = await dbNonce.findOne({nonce:nonce_input});
             console.log(existing);
             if(existing){
                 return false;
@@ -44,9 +26,9 @@ export async function validNonce(nonce_input, timeStamp_input){
     };
 };
 
-export async function createNonce(nonce_input, timeStamp_input){
+export async function createNonce(nonce_input, timeStamp_input, dbNonce){
     try{
-        await db.create({nonce: nonce_input, timeStamp: timeStamp_input});
+        await dbNonce.create({nonce: nonce_input, timeStamp: timeStamp_input});
         return true
     }catch(err){
         console.error("Critic error creating nonce on the db", err);
