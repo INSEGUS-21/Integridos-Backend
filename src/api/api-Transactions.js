@@ -43,27 +43,20 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         const nonce = req.headers.nonce;
         const timeStamp = req.headers.timestamp;
         const hmac=req.headers.hmac;
-        let hmacBuffer;
-        try{
-         hmacBuffer=Buffer.from(hmac, 'hex');
-        }catch(e){
-           return res.sendStatus(403);
-        }
 
-        if(hmacBuffer.length!==hmac.length) return  res.sendStatus(403);
-
-        const hmacBackend=crypto.createHmac('sha256', SECRET_KEY)
-            .update(`${timeStamp}.${nonce}.`).update(req.rawBody).digest('hex');
-        
-        if(!(crypto.timingSafeEqual(hmacBuffer,hmacBackend))) {
-            return res.status(403).send("HMAC is not the same, integrity problem");
-        }
+        const hmacBuffer = Buffer.from(hmac || '', 'hex');
+        const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
+            .update(`${timeStamp}.${nonce}.`).update(req.rawBody|| '').digest();
 
         if (!(req.body.origin_account && req.body.destination_account
              && req.body.amount && req.body.currency && nonce && timeStamp)) {
              return res.status(400).send("incomplete params");
-             }
+        }
 
+        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
+            return res.status(403).send("HMAC is not the same, integrity problem");
+        }
+        
         try {
             const isNonceValid=await validNonce(nonce, timeStamp, dbNonce)
             

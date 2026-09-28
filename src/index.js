@@ -6,10 +6,10 @@ import cors from 'cors';
 import { loadBackendApiUsers } from './api/api-Users.js'; 
 import { loadTransactionApi } from './api/api-Transactions.js';
 import mongoose from 'mongoose';
-import Redis from 'ioredis';
+
 
 const app=express()
-const PORT=3000;
+const PORT=process.env.PORT || 3000;
 
 //const redisClient=new Redis();
 
