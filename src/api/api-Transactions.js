@@ -43,12 +43,19 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         const nonce = req.headers.nonce;
         const timeStamp = req.headers.timestamp;
         const hmac=req.headers.hmac;
+        let hmacBuffer;
+        try{
+         hmacBuffer=Buffer.from(hmac, 'hex');
+        }catch(e){
+           return res.sendStatus(403);
+        }
 
+        if(hmacBuffer.length!==hmac.length) return  res.sendStatus(403);
 
         const hmacBackend=crypto.createHmac('sha256', SECRET_KEY)
             .update(`${timeStamp}.${nonce}.`).update(req.rawBody).digest('hex');
         
-        if(!(hmacBackend===hmac)) {
+        if(!(crypto.timingSafeEqual(hmacBuffer,hmacBackend))) {
             return res.status(403).send("HMAC is not the same, integrity problem");
         }
 

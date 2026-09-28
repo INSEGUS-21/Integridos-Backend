@@ -6,9 +6,13 @@ import cors from 'cors';
 import { loadBackendApiUsers } from './api/api-Users.js'; 
 import { loadTransactionApi } from './api/api-Transactions.js';
 import mongoose from 'mongoose';
+import Redis from 'ioredis';
 
 const app=express()
-const PORT= process.env.PORT ||3000;
+const PORT=3000;
+
+//const redisClient=new Redis();
+
 
 app.use(cors()); 
 app.use(express.json({
@@ -51,5 +55,5 @@ loadTransactionApi(app, dbTransaction, dbNonce);
 loadBackendApiUsers(app, dbUsers);
 
 app.listen(PORT, () => {
-    console.log(`Backend Now Running on the port ${PORT}`);
+    console.log("Backend Now Running");
 });
