@@ -5,8 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --env-file=.env src/index.js"
+    "test-api-local": "npx newman run src/test/TransactionsApiTest.json -e src/test/localhost.postman_environment.json",
+    "test-local": "start-server-and-test start http://localhost:3000/api/v1/transactions test-api-local",
+    "test": "npm run test-local",
+    "start": "node src/index.js"
   },
   "repository": {
     "type": "git",
@@ -32,6 +34,8 @@
     "mongoose": "^9.10.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "newman": "^6.2.2",
+    "nodemon": "^3.1.14",
+    "start-server-and-test": "^3.0.12"
   }
 }

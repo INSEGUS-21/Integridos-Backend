@@ -1,0 +1,659 @@
+{
+  "info": {
+    "name": "SecBank API - Pruebas Definitivas (Nativo)",
+    "description": "Batería exhaustiva de pruebas usando la librería nativa crypto-js de Postman. Inicia limpiando la base de datos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. DELETE - Limpiar Base de Datos Inicial",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Todo borrado (Status 200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. GET All - Lista Vacía",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status es 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La lista está vacía\", function () { pm.expect(pm.response.json().length).to.eql(0); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. POST - Creación Correcta 1",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = pm.request.body.raw || \"\";",
+              "",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacción 1 creada con éxito (200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{req_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{req_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{req_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"origin_account\": \"ES111\",\"destination_account\": \"ES222\",\"amount\": 100,\"currency\": \"EUR\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. POST - Creación Correcta 2 (Guardar Replay)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = pm.request.body.raw || \"\";",
+              "",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacción 2 creada con éxito (200)\", function () { pm.response.to.have.status(200); });",
+              "pm.collectionVariables.set(\"replay_ts\", pm.variables.get(\"req_ts\"));",
+              "pm.collectionVariables.set(\"replay_nonce\", pm.variables.get(\"req_nonce\"));",
+              "pm.collectionVariables.set(\"replay_hmac\", pm.variables.get(\"req_hmac\"));",
+              "pm.collectionVariables.set(\"replay_body\", pm.request.body.raw);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{req_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{req_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{req_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"origin_account\": \"ES333\",\"destination_account\": \"ES444\",\"amount\": 500,\"currency\": \"EUR\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. ERROR - Ataque Replay (Mismo Nonce < 5 min)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea Replay (Status 400)\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"Mensaje indica Nonce inválido\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{replay_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{replay_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{replay_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{replay_body}}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. ERROR - Ataque Caducado (Timestamp > 5 min)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const expired_ts = (Math.floor(Date.now() / 1000) - 400).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = pm.request.body.raw || \"\";",
+              "",
+              "const mensaje = expired_ts + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "",
+              "pm.variables.set(\"exp_ts\", expired_ts);",
+              "pm.variables.set(\"exp_nonce\", nonce);",
+              "pm.variables.set(\"exp_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea Caducidad (Status 400)\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"Mensaje indica Nonce inválido\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{exp_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{exp_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{exp_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"origin_account\": \"ES999\",\"destination_account\": \"ES888\",\"amount\": 10,\"currency\": \"EUR\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. GET All - Comprobar que hay 2 y extraer IDs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status es 200\", function () { pm.response.to.have.status(200); });",
+              "const jsonData = pm.response.json();",
+              "pm.test(\"Exactamente 2 transacciones creadas\", function () { pm.expect(jsonData.length).to.eql(2); });",
+              "if(jsonData.length >= 2) {",
+              "    pm.collectionVariables.set(\"tx_id_1\", jsonData[0]._id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. GET - Obtener por ID (Éxito)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status es 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"El ID devuelto coincide\", function () { pm.expect(pm.response.json()._id).to.eql(pm.collectionVariables.get(\"tx_id_1\")); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions/{{tx_id_1}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions",
+            "{{tx_id_1}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. GET - Obtener por ID (Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status es 404 (Not Found)\", function () { pm.response.to.have.status(404); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions/651c8b8f9a2b3c4d5e6f7a8b",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions",
+            "651c8b8f9a2b3c4d5e6f7a8b"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. ERROR - Fallo de Integridad HMAC (Datos Modificados)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret_falso = \"clave_invalida_forzada\";",
+              "const rawBody = pm.request.body.raw || \"\";",
+              "",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret_falso).toString(CryptoJS.enc.Hex);",
+              "",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea fallo de integridad (Status 403)\", function () { pm.response.to.have.status(403); });",
+              "pm.test(\"Mensaje indica problema de HMAC\", function () { pm.expect(pm.response.text()).to.include(\"HMAC is not the same\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{req_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{req_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{req_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"origin_account\": \"ES333\",\"destination_account\": \"ES444\",\"amount\": 99999,\"currency\": \"EUR\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. ERROR - Parámetros Incompletos",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = pm.request.body.raw || \"\";",
+              "",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea falta de datos (Status 400)\", function () { pm.response.to.have.status(400); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "nonce",
+            "value": "{{req_nonce}}",
+            "type": "text"
+          },
+          {
+            "key": "timestamp",
+            "value": "{{req_ts}}",
+            "type": "text"
+          },
+          {
+            "key": "hmac",
+            "value": "{{req_hmac}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\": 100}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. DELETE - Borrar por ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacción borrada (Status 200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions/{{tx_id_1}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions",
+            "{{tx_id_1}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. DELETE - Limpiar Base de Datos Final",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Todo borrado (Status 200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "secret_key",
+      "value": "secret",
+      "type": "string"
+    },
+    {
+      "key": "tx_id_1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "replay_ts",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "replay_nonce",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "replay_hmac",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "replay_body",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
