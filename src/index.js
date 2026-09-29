@@ -52,7 +52,7 @@ const dbTransaction = conn.model("Transaction", Transaction_scheme);
 const dbUsers = conn.model('User', UserSchema, 'users-data');
 
 loadTransactionApi(app, dbTransaction, dbNonce);
-loadBackendApiUsers(app, dbUsers);
+loadBackendApiUsers(app, dbUsers, dbNonce);
 
 app.listen(PORT, () => {
     console.log(`Backend Now Running on port ${PORT}`);

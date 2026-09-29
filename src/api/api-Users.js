@@ -31,7 +31,7 @@ const limiter = rateLimit({
         
 });
 
-export function loadBackendApiUsers(app,dbUsers){
+export function loadBackendApiUsers(app,dbUsers,dbNonce){
 
     //get load initial data
     app.get(URL_BASE_API+"/Users/loadInitialData", async (req, res)=> {
@@ -141,6 +141,44 @@ export function loadBackendApiUsers(app,dbUsers){
     //login
     app.post(URL_BASE_API+"/login", limiter, async (req, res) => {
         const {username, password} = req.body;
+
+        const timestamp=req.headers.timestamp;
+        const nonce=req.headers.nonce;
+        const hmac=req.headers.hmac;
+
+        const hmacBuffer = Buffer.from(hmac || '', 'hex');
+
+        const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
+                    .update(`${timestamp}.${nonce}.`).update(req.rawBody|| '').digest();
+
+        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
+                    return res.status(403).send("HMAC is not the same, integrity problem");
+        }
+
+        try {
+                const isNonceValid=await validNonce(nonce, timestamp, dbNonce);
+                    
+                if (isNonceValid){
+                    if (await createNonce(nonce,timestamp, dbNonce)){
+                            console.log(`POST transaction .... correct`);
+                            await dbTransaction.create(req.body);
+
+                    } else {
+                            return res.status(400).send("Error creating the nonce in the db");
+                        }
+                }else{
+                    return res.status(400).send("Nonce is not valid");
+                    }
+                } catch (error) {
+                    console.log(error);
+                    return res.sendStatus(500, "Server Error");
+                }
+
+        
+
+
+
+
         if(!username || !password){
            return res.status(400).send("missing fields");
         }
@@ -160,6 +198,40 @@ export function loadBackendApiUsers(app,dbUsers){
     //register
     app.post(URL_BASE_API+"/register", async (req, res) => {
         const {username, password} = req.body;
+
+        const timestamp=req.headers.timestamp;
+        const nonce=req.headers.nonce;
+        const hmac=req.headers.hmac;
+
+        const hmacBuffer = Buffer.from(hmac || '', 'hex');
+
+        const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
+                    .update(`${timestamp}.${nonce}.`).update(req.rawBody|| '').digest();
+
+        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
+                    return res.status(403).send("HMAC is not the same, integrity problem");
+        }
+
+        try {
+                const isNonceValid=await validNonce(nonce, timestamp, dbNonce);
+                    
+                if (isNonceValid){
+                    if (await createNonce(nonce,timestamp, dbNonce)){
+                            console.log(`POST transaction .... correct`);
+                            await dbTransaction.create(req.body);
+                            
+                    } else {
+                            return res.status(400).send("Error creating the nonce in the db");
+                        }
+                }else{
+                    return res.status(400).send("Nonce is not valid");
+                    }
+            } catch (error) {
+                    console.log(error);
+                    return res.sendStatus(500, "Server Error");
+            }
+
+        
         if(!username || !password){
            return res.status(400).send("missing fields");
         }
