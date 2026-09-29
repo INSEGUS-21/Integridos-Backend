@@ -3,7 +3,7 @@ import { createNonce, validNonce } from '../services/serviceNonce.js';
 import crypto from 'node:crypto';
 
 const BASE_URL="/api/v1";
-const SECRET_KEY = process.env.SECRET_KEY||"secret"
+const SECRET_KEY = process.env.SECRET_KEY||"6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b"
 
 export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
 
