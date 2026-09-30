@@ -149,7 +149,15 @@ export function loadBackendApiUsers(app,dbUsers){
         if(!user || user.password_resume !== password){
             return res.status(401).send("unautorized");
         }
+        
+        console.log("antes del token");
+        console.log(JWT_SECRET);
+        
         const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '1h' }); //crea token
+        
+        console.log(token);
+
+
         res.status(200).json({ token });
         }catch{
             return res.sendStatus(500);
