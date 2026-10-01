@@ -1,18 +1,169 @@
 {
   "info": {
-    "name": "SecBank API - Pruebas Definitivas (Nativo)",
-    "description": "Batería exhaustiva de pruebas usando la librería nativa crypto-js de Postman. Inicia limpiando la base de datos.",
+    "name": "Transactions API ",
+    "description": "Coleccion de postman para probar la api de transacciones de forma exhaustiva",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "1. DELETE - Limpiar Base de Datos Inicial",
+      "name": "0a. SETUP - Registrar Usuario de Pruebas",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Usuario registrado (201) o ya existía (409)\", function () {",
+              "    pm.expect([201, 409]).to.include(pm.response.code);",
+              "    if (pm.response.code === 201) {",
+              "        try {",
+              "            const resData = pm.response.json();",
+              "            const uId = resData.userId || resData._id || (resData.user && (resData.user._id || resData.user.id));",
+              "            if (uId) { pm.collectionVariables.set(\"user_id\", uId); }",
+              "        } catch (e) {",
+              "            // El servidor devolvió texto plano (ej. \"user created\")",
+              "        }",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"user_transactions_test\", \"password\": \"hash_password_simulado_123\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/register",
+          "host": [ "{{base_url}}" ],
+          "path": [ "register" ]
+        }
+      }
+    },
+    {
+      "name": "0b. SETUP - Login para Obtener Token JWT",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Login correcto (Status 200)\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "    let resData;",
+              "    try { resData = pm.response.json(); } catch(e) {}",
+              "    if (resData) {",
+              "        const token = resData.token;",
+              "        pm.test(\"Token JWT obtenido correctamente\", function () { pm.expect(token).to.be.a('string'); });",
+              "        if (token) {",
+              "            pm.collectionVariables.set(\"jwt_token\", token);",
+              "            let uId = resData.userId || resData._id || (resData.user && (resData.user._id || resData.user.id));",
+              "            if (!uId) {",
+              "                try {",
+              "                    const payload = JSON.parse(atob(token.split('.')[1]));",
+              "                    uId = payload.id || payload._id || payload.userId || payload.sub;",
+              "                } catch(e) {}",
+              "            }",
+              "            if (uId) { pm.collectionVariables.set(\"user_id\", uId); }",
+              "        }",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"user_transactions_test\", \"password\": \"hash_password_simulado_123\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/login",
+          "host": [ "{{base_url}}" ],
+          "path": [ "login" ]
+        }
+      }
+    },
+    {
+      "name": "1. GET All - Sin Token ERROR (Status 401)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Todo borrado (Status 200)\", function () { pm.response.to.have.status(200); });"
+              "pm.test(\"Sin token es rechazado (Status 401)\", function () { pm.response.to.have.status(401); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
+        }
+      }
+    },
+    {
+      "name": "2. DELETE - Limpiar BD Inicial (Con Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Base de datos limpiada (Status 200)\", function () { pm.response.to.have.status(200); });"
             ],
             "type": "text/javascript"
           }
@@ -20,20 +171,18 @@
       ],
       "request": {
         "method": "DELETE",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "2. GET All - Lista Vacía",
+      "name": "3. GET All - Lista Vacía (Con Token)",
       "event": [
         {
           "listen": "test",
@@ -48,20 +197,18 @@
       ],
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "3. POST - Creación Correcta 1",
+      "name": "4. POST - Creación Correcta 1",
       "event": [
         {
           "listen": "prerequest",
@@ -70,11 +217,9 @@
               "const timestamp = Math.floor(Date.now() / 1000).toString();",
               "const nonce = pm.variables.replaceIn('{{$guid}}');",
               "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
-              "const rawBody = pm.request.body.raw || \"\";",
-              "",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
               "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
               "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
-              "",
               "pm.variables.set(\"req_ts\", timestamp);",
               "pm.variables.set(\"req_nonce\", nonce);",
               "pm.variables.set(\"req_hmac\", hmac);"
@@ -86,7 +231,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Transacción 1 creada con éxito (200)\", function () { pm.response.to.have.status(200); });"
+              "pm.test(\"Transacción 1 creada con éxito (Status 200)\", function () { pm.response.to.have.status(200); });"
             ],
             "type": "text/javascript"
           }
@@ -95,26 +240,11 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "nonce",
-            "value": "{{req_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{req_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{req_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
         ],
         "body": {
           "mode": "raw",
@@ -122,17 +252,13 @@
         },
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "4. POST - Creación Correcta 2 (Guardar Replay)",
+      "name": "5. POST - Creación Correcta 2 (Guardar Replay)",
       "event": [
         {
           "listen": "prerequest",
@@ -141,11 +267,9 @@
               "const timestamp = Math.floor(Date.now() / 1000).toString();",
               "const nonce = pm.variables.replaceIn('{{$guid}}');",
               "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
-              "const rawBody = pm.request.body.raw || \"\";",
-              "",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
               "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
               "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
-              "",
               "pm.variables.set(\"req_ts\", timestamp);",
               "pm.variables.set(\"req_nonce\", nonce);",
               "pm.variables.set(\"req_hmac\", hmac);"
@@ -157,11 +281,11 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Transacción 2 creada con éxito (200)\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Transacción 2 creada con éxito (Status 200)\", function () { pm.response.to.have.status(200); });",
               "pm.collectionVariables.set(\"replay_ts\", pm.variables.get(\"req_ts\"));",
               "pm.collectionVariables.set(\"replay_nonce\", pm.variables.get(\"req_nonce\"));",
               "pm.collectionVariables.set(\"replay_hmac\", pm.variables.get(\"req_hmac\"));",
-              "pm.collectionVariables.set(\"replay_body\", pm.request.body.raw);"
+              "pm.collectionVariables.set(\"replay_body\", pm.request.body ? pm.request.body.raw : \"\");"
             ],
             "type": "text/javascript"
           }
@@ -170,26 +294,11 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "nonce",
-            "value": "{{req_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{req_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{req_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
         ],
         "body": {
           "mode": "raw",
@@ -197,24 +306,37 @@
         },
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "5. ERROR - Ataque Replay (Mismo Nonce < 5 min)",
+      "name": "6. POST ERROR - Parámetros Incompletos (Status 400)",
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Bloquea Replay (Status 400)\", function () { pm.response.to.have.status(400); });",
-              "pm.test(\"Mensaje indica Nonce inválido\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
+              "pm.test(\"Rechaza parámetros incompletos (Status 400)\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"Mensaje indica incomplete params\", function () { pm.expect(pm.response.text()).to.include(\"incomplete params\"); });"
             ],
             "type": "text/javascript"
           }
@@ -223,26 +345,96 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "nonce",
-            "value": "{{replay_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{replay_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{replay_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\": 100}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
+        }
+      }
+    },
+    {
+      "name": "7. POST ERROR - Fallo Integridad HMAC (Status 403)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret_falso = \"clave_secreta_incorrecta\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret_falso).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
           }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea fallo de HMAC (Status 403)\", function () { pm.response.to.have.status(403); });",
+              "pm.test(\"Mensaje indica HMAC is not the same\", function () { pm.expect(pm.response.text()).to.include(\"HMAC is not the same\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"origin_account\": \"ES333\",\"destination_account\": \"ES444\",\"amount\": 99999,\"currency\": \"EUR\"}"
+        },
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
+        }
+      }
+    },
+    {
+      "name": "8. POST ERROR - Ataque Replay / Nonce Usado (Status 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Bloquea Replay Attack por nonce usado (Status 400)\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"Mensaje indica Nonce is not valid\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{replay_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{replay_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{replay_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
         ],
         "body": {
           "mode": "raw",
@@ -250,17 +442,13 @@
         },
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "6. ERROR - Ataque Caducado (Timestamp > 5 min)",
+      "name": "9. POST ERROR - Timestamp Expirado (> 5 min) (Status 400)",
       "event": [
         {
           "listen": "prerequest",
@@ -269,11 +457,9 @@
               "const expired_ts = (Math.floor(Date.now() / 1000) - 400).toString();",
               "const nonce = pm.variables.replaceIn('{{$guid}}');",
               "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
-              "const rawBody = pm.request.body.raw || \"\";",
-              "",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
               "const mensaje = expired_ts + \".\" + nonce + \".\" + rawBody;",
               "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
-              "",
               "pm.variables.set(\"exp_ts\", expired_ts);",
               "pm.variables.set(\"exp_nonce\", nonce);",
               "pm.variables.set(\"exp_hmac\", hmac);"
@@ -285,8 +471,8 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Bloquea Caducidad (Status 400)\", function () { pm.response.to.have.status(400); });",
-              "pm.test(\"Mensaje indica Nonce inválido\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
+              "pm.test(\"Bloquea Timestamp fuera de rango (Status 400)\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"Mensaje indica Nonce is not valid\", function () { pm.expect(pm.response.text()).to.include(\"Nonce is not valid\"); });"
             ],
             "type": "text/javascript"
           }
@@ -295,26 +481,11 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "nonce",
-            "value": "{{exp_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{exp_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{exp_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{exp_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{exp_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{exp_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
         ],
         "body": {
           "mode": "raw",
@@ -322,17 +493,13 @@
         },
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "7. GET All - Comprobar que hay 2 y extraer IDs",
+      "name": "10. GET All - Comprobar que hay 2 y extraer ID",
       "event": [
         {
           "listen": "test",
@@ -340,8 +507,8 @@
             "exec": [
               "pm.test(\"Status es 200\", function () { pm.response.to.have.status(200); });",
               "const jsonData = pm.response.json();",
-              "pm.test(\"Exactamente 2 transacciones creadas\", function () { pm.expect(jsonData.length).to.eql(2); });",
-              "if(jsonData.length >= 2) {",
+              "pm.test(\"Hay exactamente 2 transacciones creadas\", function () { pm.expect(jsonData.length).to.eql(2); });",
+              "if (jsonData.length >= 1) {",
               "    pm.collectionVariables.set(\"tx_id_1\", jsonData[0]._id);",
               "}"
             ],
@@ -351,27 +518,25 @@
       ],
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "8. GET - Obtener por ID (Éxito)",
+      "name": "11. GET - Obtener por ID (Éxito)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
               "pm.test(\"Status es 200\", function () { pm.response.to.have.status(200); });",
-              "pm.test(\"El ID devuelto coincide\", function () { pm.expect(pm.response.json()._id).to.eql(pm.collectionVariables.get(\"tx_id_1\")); });"
+              "pm.test(\"El ID coincida con el solicitado\", function () { pm.expect(pm.response.json()._id).to.eql(pm.collectionVariables.get(\"tx_id_1\")); });"
             ],
             "type": "text/javascript"
           }
@@ -379,27 +544,28 @@
       ],
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
         "url": {
           "raw": "{{base_url}}/transactions/{{tx_id_1}}",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions",
-            "{{tx_id_1}}"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions", "{{tx_id_1}}" ]
         }
       }
     },
     {
-      "name": "9. GET - Obtener por ID (Not Found)",
+      "name": "12. GET - Obtener por ID ERROR (No Existe - Status 404)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status es 404 (Not Found)\", function () { pm.response.to.have.status(404); });"
+              "pm.test(\"Transacción no encontrada (Status 404)\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"Mensaje indica recurso no encontrado\", function () {",
+              "    const resText = pm.response.text();",
+              "    pm.expect(resText.includes(\"Not Found\") || resText.includes(\"Transaction not found\")).to.be.true;",
+              "});"
             ],
             "type": "text/javascript"
           }
@@ -407,47 +573,24 @@
       ],
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
         "url": {
           "raw": "{{base_url}}/transactions/651c8b8f9a2b3c4d5e6f7a8b",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions",
-            "651c8b8f9a2b3c4d5e6f7a8b"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions", "651c8b8f9a2b3c4d5e6f7a8b" ]
         }
       }
     },
     {
-      "name": "10. ERROR - Fallo de Integridad HMAC (Datos Modificados)",
+      "name": "13. POST - Método Prohibido en /transactions/:id (Status 405)",
       "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const timestamp = Math.floor(Date.now() / 1000).toString();",
-              "const nonce = pm.variables.replaceIn('{{$guid}}');",
-              "const secret_falso = \"clave_invalida_forzada\";",
-              "const rawBody = pm.request.body.raw || \"\";",
-              "",
-              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
-              "const hmac = CryptoJS.HmacSHA256(mensaje, secret_falso).toString(CryptoJS.enc.Hex);",
-              "",
-              "pm.variables.set(\"req_ts\", timestamp);",
-              "pm.variables.set(\"req_nonce\", nonce);",
-              "pm.variables.set(\"req_hmac\", hmac);"
-            ],
-            "type": "text/javascript"
-          }
-        },
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Bloquea fallo de integridad (Status 403)\", function () { pm.response.to.have.status(403); });",
-              "pm.test(\"Mensaje indica problema de HMAC\", function () { pm.expect(pm.response.text()).to.include(\"HMAC is not the same\"); });"
+              "pm.test(\"Método no permitido (Status 405)\", function () { pm.response.to.have.status(405); });"
             ],
             "type": "text/javascript"
           }
@@ -455,45 +598,95 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "nonce",
-            "value": "{{req_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{req_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{req_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"origin_account\": \"ES333\",\"destination_account\": \"ES444\",\"amount\": 99999,\"currency\": \"EUR\"}"
-        },
+        "header": [],
         "url": {
-          "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "raw": "{{base_url}}/transactions/{{tx_id_1}}",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions", "{{tx_id_1}}" ]
         }
       }
     },
     {
-      "name": "11. ERROR - Parámetros Incompletos",
+      "name": "14. DELETE - Eliminar por ID ERROR (No Existe - Status 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacción no existe para borrar (Status 404)\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"Mensaje indica recurso no encontrado\", function () {",
+              "    const resText = pm.response.text();",
+              "    pm.expect(resText.includes(\"Not Found\") || resText.includes(\"Transaction not found\")).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/transactions/651c8b8f9a2b3c4d5e6f7a8b",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions", "651c8b8f9a2b3c4d5e6f7a8b" ]
+        }
+      }
+    },
+    {
+      "name": "15. DELETE - Eliminar por ID (Éxito)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacción borrada con éxito (Status 200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/transactions/{{tx_id_1}}",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions", "{{tx_id_1}}" ]
+        }
+      }
+    },
+    {
+      "name": "16. DELETE - Limpiar BD Final (Transacciones)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Transacciones limpiadas al finalizar (Status 200)\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
+        }
+      }
+    },
+    {
+      "name": "17. DELETE - Eliminar Usuario de Pruebas",
       "event": [
         {
           "listen": "prerequest",
@@ -502,11 +695,9 @@
               "const timestamp = Math.floor(Date.now() / 1000).toString();",
               "const nonce = pm.variables.replaceIn('{{$guid}}');",
               "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
-              "const rawBody = pm.request.body.raw || \"\";",
-              "",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
               "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
               "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
-              "",
               "pm.variables.set(\"req_ts\", timestamp);",
               "pm.variables.set(\"req_nonce\", nonce);",
               "pm.variables.set(\"req_hmac\", hmac);"
@@ -518,7 +709,81 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Bloquea falta de datos (Status 400)\", function () { pm.response.to.have.status(400); });"
+              "pm.test(\"Usuario eliminado con éxito (Status 200 o 204)\", function () {",
+              "    pm.expect([200, 204]).to.include(pm.response.code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/users/{{user_id}}",
+          "host": [ "{{base_url}}" ],
+          "path": [ "users", "{{user_id}}" ]
+        }
+      }
+    },
+    {
+      "name": "18. VERIFY - GET All Sin Token Tras Borrado (Status 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Acceso denegado sin cabecera Authorization (Status 401)\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transactions",
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
+        }
+      }
+    },
+    {
+      "name": "19. VERIFY - Operación con Token de Usuario Eliminado (Status 401)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Token no válido o usuario extinto no autorizado (Status 401)\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
             ],
             "type": "text/javascript"
           }
@@ -527,133 +792,84 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "nonce",
-            "value": "{{req_nonce}}",
-            "type": "text"
-          },
-          {
-            "key": "timestamp",
-            "value": "{{req_ts}}",
-            "type": "text"
-          },
-          {
-            "key": "hmac",
-            "value": "{{req_hmac}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" },
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"amount\": 100}"
+          "raw": "{\"origin_account\": \"ES000\",\"destination_account\": \"ES999\",\"amount\": 10,\"currency\": \"EUR\"}"
         },
         "url": {
           "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "host": [ "{{base_url}}" ],
+          "path": [ "transactions" ]
         }
       }
     },
     {
-      "name": "12. DELETE - Borrar por ID",
+      "name": "20. VERIFY - Login con Usuario Eliminado ERROR (Status 401 o 404)",
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const nonce = pm.variables.replaceIn('{{$guid}}');",
+              "const secret = pm.collectionVariables.get(\"secret_key\") || \"secret\";",
+              "const rawBody = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : \"\";",
+              "const mensaje = timestamp + \".\" + nonce + \".\" + rawBody;",
+              "const hmac = CryptoJS.HmacSHA256(mensaje, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"req_ts\", timestamp);",
+              "pm.variables.set(\"req_nonce\", nonce);",
+              "pm.variables.set(\"req_hmac\", hmac);"
+            ],
+            "type": "text/javascript"
+          }
+        },
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Transacción borrada (Status 200)\", function () { pm.response.to.have.status(200); });"
+              "pm.test(\"Login rechazado por usuario inexacto o borrado (Status 401 o 404)\", function () {",
+              "    pm.expect([401, 404]).to.include(pm.response.code);",
+              "});"
             ],
             "type": "text/javascript"
           }
         }
       ],
       "request": {
-        "method": "DELETE",
-        "header": [],
+        "method": "POST",
+        "header": [
+          { "key": "nonce", "value": "{{req_nonce}}", "type": "text" },
+          { "key": "timestamp", "value": "{{req_ts}}", "type": "text" },
+          { "key": "hmac", "value": "{{req_hmac}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"user_transactions_test\", \"password\": \"hash_password_simulado_123\"}"
+        },
         "url": {
-          "raw": "{{base_url}}/transactions/{{tx_id_1}}",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions",
-            "{{tx_id_1}}"
-          ]
-        }
-      }
-    },
-    {
-      "name": "13. DELETE - Limpiar Base de Datos Final",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Todo borrado (Status 200)\", function () { pm.response.to.have.status(200); });"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ],
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/transactions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "transactions"
-          ]
+          "raw": "{{base_url}}/login",
+          "host": [ "{{base_url}}" ],
+          "path": [ "login" ]
         }
       }
     }
   ],
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:3000/api/v1",
-      "type": "string"
-    },
-    {
-      "key": "secret_key",
-      "value": "secret",
-      "type": "string"
-    },
-    {
-      "key": "tx_id_1",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "replay_ts",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "replay_nonce",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "replay_hmac",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "replay_body",
-      "value": "",
-      "type": "string"
-    }
+    { "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "secret_key", "value": "6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b", "type": "string" },
+    { "key": "jwt_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "tx_id_1", "value": "", "type": "string" },
+    { "key": "replay_ts", "value": "", "type": "string" },
+    { "key": "replay_nonce", "value": "", "type": "string" },
+    { "key": "replay_hmac", "value": "", "type": "string" },
+    { "key": "replay_body", "value": "", "type": "string" }
   ]
 }

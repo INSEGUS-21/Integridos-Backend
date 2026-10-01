@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test-api-local": "npx newman run src/test/TransactionsApiTest.json -e src/test/localhost.postman_environment.json",
-    "test-local": "start-server-and-test start http://localhost:3000/api/v1/transactions test-api-local",
+    "test-api-local": "npx newman run src/test/UsersApiTest.json -e src/test/localhost.postman_environment.json && npx newman run src/test/TransactionsApiTest.json -e src/test/localhost.postman_environment.json",
+    "test-local": "start-server-and-test start http://localhost:3000 test-api-local",
     "test": "npm run test-local",
     "start": "node src/index.js"
   },

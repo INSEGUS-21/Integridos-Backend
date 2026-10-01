@@ -39,7 +39,7 @@ const Transaction_scheme=new mongoose.Schema(
 
 const UserSchema= new mongoose.Schema({
     username: String,
-    password_resume: String 
+    password_resume: String
 });
 
 const NonceSchema= new mongoose.Schema({
@@ -49,10 +49,14 @@ const NonceSchema= new mongoose.Schema({
 
 const dbNonce = conn.model('Nonce', NonceSchema);
 const dbTransaction = conn.model("Transaction", Transaction_scheme);
-const dbUsers = conn.model('User', UserSchema, 'users-data');
+export const dbUsers = conn.model('User', UserSchema, 'users-data');
 
 loadTransactionApi(app, dbTransaction, dbNonce);
-loadBackendApiUsers(app, dbUsers);
+loadBackendApiUsers(app, dbUsers, dbNonce);
+
+app.get('/', (req, res) => {
+  res.status(200).send('API Running');
+});
 
 app.listen(PORT, () => {
     console.log(`Backend Now Running on port ${PORT}`);
