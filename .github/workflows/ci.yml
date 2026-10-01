@@ -35,3 +35,7 @@ jobs:
           MONGO_URL: mongodb://localhost:27017/test_ci_db
           SECRET_KEY: secret
         run: npm test
+
+      - name: Desplegar en Render
+        if: github.ref == 'refs/heads/main' && success()
+        run: curl -X POST "${{ secrets.RENDER_HOOK }}"
