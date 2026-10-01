@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Transactions API - Pruebas Completas, Errores y Seguridad HMAC",
-    "description": "Batería exhaustiva de pruebas para la API de Transacciones. Incluye obtención de Token JWT, verificación de middleware de autenticación (401), validación de firmas HMAC (403), ataques de Replay / Timestamp expirado (400), borrados, limpieza final de usuarios y verificación de acceso denegado post-eliminación.",
+    "name": "Transactions API ",
+    "description": "Coleccion de postman para probar la api de transacciones de forma exhaustiva",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -863,7 +863,7 @@
   ],
   "variable": [
     { "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
-    { "key": "secret_key", "value": "secret", "type": "string" },
+    { "key": "secret_key", "value": "6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b", "type": "string" },
     { "key": "jwt_token", "value": "", "type": "string" },
     { "key": "user_id", "value": "", "type": "string" },
     { "key": "tx_id_1", "value": "", "type": "string" },

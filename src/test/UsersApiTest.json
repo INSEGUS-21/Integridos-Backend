@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Users API - Pruebas Completas, Errores y Rate Limit (CryptoJS)",
-    "description": "Batería exhaustiva de pruebas para la API de Usuarios utilizando CryptoJS. Incluye verificación de login, registro, errores de HMAC, Replay Attack y prueba de bloqueo HTTP 429 (Rate Limit).",
+    "name": "Users API",
+    "description": "Coleccion de postman para probar la api de users de forma exhaustiva",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -774,7 +774,7 @@
   ],
   "variable": [
     { "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
-    { "key": "secret_key", "value": "secret", "type": "string" },
+    { "key": "secret_key", "value": "6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b", "type": "string" },
     { "key": "user_id_1", "value": "", "type": "string" },
     { "key": "jwt_token", "value": "", "type": "string" },
     { "key": "replay_ts", "value": "", "type": "string" },
