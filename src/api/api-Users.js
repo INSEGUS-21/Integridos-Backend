@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import fs from 'fs'
 import csv from 'csv-parser';
 import jwt from 'jsonwebtoken';
@@ -8,7 +7,7 @@ import { auth, JWT_SECRET } from '../services/auth.js'; // ajusta la ruta
 import { createNonce, validNonce } from '../services/serviceNonce.js';
 
 let URL_BASE_API = "/api/v1";
-const SECRET_KEY = process.env.SECRET_KEY||"secret"
+const SECRET_KEY = process.env.SECRET_KEY||"6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b"
 
 //limitar numero de intentos de login por usuario 
 const limiter = rateLimit({
