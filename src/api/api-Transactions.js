@@ -2,13 +2,14 @@
 import { createNonce, validNonce } from '../services/serviceNonce.js';
 import crypto from 'node:crypto';
 import { auth } from '../services/auth.js';
+import { checkUserExists } from '../services/serviceCheckUsersTransactions.js';
 
 const BASE_URL="/api/v1";
 const SECRET_KEY = process.env.SECRET_KEY||"secret"
 
 export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
 
-    app.get(BASE_URL+"/transactions",auth,async  (req,res)=>{
+    app.get(BASE_URL+"/transactions",auth, checkUserExists,async  (req,res)=>{
         console.log("GET transactions....")
         try {
             const data= await dbTransaction.find({});
@@ -20,7 +21,7 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         }
     });
 
-    app.get(BASE_URL+"/transactions/:id",auth, async (req,res)=>{
+    app.get(BASE_URL+"/transactions/:id",auth, checkUserExists, async (req,res)=>{
         const id= req.params.id; 
         console.log(`GET transaction ${id} ....`)
         try {
@@ -37,7 +38,7 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         }        
     })
 
-    app.post(BASE_URL+"/transactions",auth, async (req,res)=>{
+    app.post(BASE_URL+"/transactions",auth,checkUserExists, async (req,res)=>{
         console.log(`POST transactions ....`)
         const nonce = req.headers.nonce;
         const timeStamp = req.headers.timestamp;
@@ -77,7 +78,7 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         
     });
 
-    app.delete(BASE_URL+"/transactions",auth, async (req,res)=>{
+    app.delete(BASE_URL+"/transactions",auth, checkUserExists, async (req,res)=>{
         console.log(`DELETE Transactions ....`)
         try {
             await dbTransaction.deleteMany({});
@@ -90,7 +91,7 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
         
     });
 
-    app.delete(BASE_URL+"/transactions/:id",auth, async (req, res)=>{
+    app.delete(BASE_URL+"/transactions/:id",auth, checkUserExists, async (req, res)=>{
         const id= req.params.id; 
         console.log(`DELETE Transaction ${id}....`)
         try {

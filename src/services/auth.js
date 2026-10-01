@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 
 export const JWT_SECRET = process.env.JWT_SECRET || "secret"; //clave con la que se firman los tokens
 
-export function auth(req, res, next){
+export async function auth(req, res, next){
     const header = req.headers.authorization || ''; //cabezera autorizacion de peticion cliente
     let token=null;
     if (header.startsWith('Bearer ')){
@@ -14,7 +14,7 @@ export function auth(req, res, next){
     }
     try{
         req.user = jwt.verify(token, JWT_SECRET); //valida token
-        next(); //
+        next()
     }catch{
         return res.status(401).send("unautorized"); //unautorized
     }

@@ -6,7 +6,7 @@
   },
   "item": [
     {
-      "name": "1. DELETE - Limpiar BD Inicial",
+      "name": "1. DELETE ADMIN- Limpiar BD Inicial",
       "event": [
         {
           "listen": "test",
@@ -22,9 +22,14 @@
         "method": "DELETE",
         "header": [],
         "url": {
-          "raw": "{{base_url}}/Users",
-          "host": [ "{{base_url}}" ],
-          "path": [ "Users" ]
+          "raw": "{{base_url}}/Admin/Users",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Admin",
+            "Users"
+          ]
         }
       }
     },
@@ -748,11 +753,21 @@
       ],
       "request": {
         "method": "DELETE",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
         "url": {
           "raw": "{{base_url}}/Users",
-          "host": [ "{{base_url}}" ],
-          "path": [ "Users" ]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Users"
+          ]
         }
       }
     }

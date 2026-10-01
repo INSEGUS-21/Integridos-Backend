@@ -49,7 +49,7 @@ const NonceSchema= new mongoose.Schema({
 
 const dbNonce = conn.model('Nonce', NonceSchema);
 const dbTransaction = conn.model("Transaction", Transaction_scheme);
-const dbUsers = conn.model('User', UserSchema, 'users-data');
+export const dbUsers = conn.model('User', UserSchema, 'users-data');
 
 loadTransactionApi(app, dbTransaction, dbNonce);
 loadBackendApiUsers(app, dbUsers, dbNonce);

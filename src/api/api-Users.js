@@ -122,9 +122,19 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         }
     });
 
-    //delete TODO
+    //delete TODO ADMIN
 
-    app.delete(URL_BASE_API + "/Users", async (req, res) => {
+    app.delete(URL_BASE_API + "/Admin/Users", async (req, res) => {
+    try {
+        await dbUsers.deleteMany({});
+        res.sendStatus(204);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+    });
+
+    app.delete(URL_BASE_API + "/Users", auth, async (req, res) => {
     try {
         await dbUsers.deleteMany({});
         res.sendStatus(204);
