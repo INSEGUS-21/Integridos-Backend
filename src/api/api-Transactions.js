@@ -1,14 +1,12 @@
 
 import { createNonce, validNonce } from '../services/serviceNonce.js';
 import crypto from 'node:crypto';
-import { auth } from './auth.js';
+import { auth } from '../services/auth.js';
 
 const BASE_URL="/api/v1";
 const SECRET_KEY = process.env.SECRET_KEY||"secret"
 
 export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
-
-    
 
     app.get(BASE_URL+"/transactions",auth,async  (req,res)=>{
         console.log("GET transactions....")

@@ -2,11 +2,13 @@ import mongoose from 'mongoose';
 import fs from 'fs'
 import csv from 'csv-parser';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import { rateLimit } from 'express-rate-limit'
-import { auth, JWT_SECRET } from './auth.js'; // ajusta la ruta
+import { auth, JWT_SECRET } from '../services/auth.js'; // ajusta la ruta
+import { createNonce, validNonce } from '../services/serviceNonce.js';
 
 let URL_BASE_API = "/api/v1";
+const SECRET_KEY = process.env.SECRET_KEY||"secret"
 
 //limitar numero de intentos de login por usuario 
 const limiter = rateLimit({
@@ -36,20 +38,37 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
     //get load initial data
     app.get(URL_BASE_API+"/Users/loadInitialData", async (req, res)=> {
         try{
-            const count = await  dbUsers.countDocuments();
+            const count = await dbUsers.countDocuments();
             if (count > 0) return res.sendStatus(409);
             const csvData = [];
+            const rows = [];
             fs.createReadStream('./data/usersData.csv')
             .pipe(csv())
-            .on('data', (data) => {csvData.push(data)})
+            .on('data', (row) => {
+                rows.push(row);
+            })
             .on('end', async () => {
-                    try {
-                        await dbUsers.create(csvData);
-                        res.sendStatus(201);
-                    } catch (err) {
-                        res.sendStatus(500);
-                    }
-                })
+                try {
+                    const hashedUsers = await Promise.all(
+                        rows.map(async (user) => {
+                            if (user.password_resume) {
+                                let hashedPassword = user.password_resume
+                                for(let i = 0; i<3;i++ ){
+                                    hashedPassword = crypto.createHash('sha256').update(hashedPassword).digest('hex');
+                                }
+                                return { ...user, password_resume: hashedPassword };
+                            }
+                            return user;
+                        })
+                    );
+
+                    await dbUsers.create(hashedUsers);
+                    res.sendStatus(201);
+                } catch (err) {
+                    console.error(err);
+                    res.sendStatus(500);
+                }
+            })
             .on('error', () => res.sendStatus(500));
 
         }catch(err){
@@ -83,27 +102,6 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         }
     });
 
-
-    //post 
-
-    app.post(URL_BASE_API+"/Users/", auth, async (req, res) => {
-        const {username, password_resume} = req.body;
-        if(!username || !password_resume){
-           return res.sendStatus(400);
-        }
-        try{ 
-            const existing = await dbUsers.findOne({ username });
-            if(existing){
-                return res.sendStatus(409);
-            }
-            await dbUsers.create({username, password_resume});
-            res.sendStatus(201);
-        }catch(err){
-            res.sendStatus(500);
-        }
-
-    });
-
     //post prohibido
 
     app.post(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
@@ -126,7 +124,7 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
 
     //delete TODO
 
-    app.delete(URL_BASE_API + "/Users", auth, async (req, res) => {
+    app.delete(URL_BASE_API + "/Users", async (req, res) => {
     try {
         await dbUsers.deleteMany({});
         res.sendStatus(204);
@@ -136,8 +134,6 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
     }
     });
 
-
-
     //login
     app.post(URL_BASE_API+"/login", limiter, async (req, res) => {
         const {username, password} = req.body;
@@ -145,6 +141,10 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         const timestamp=req.headers.timestamp;
         const nonce=req.headers.nonce;
         const hmac=req.headers.hmac;
+
+        if (!(username && password && timestamp && nonce && hmac)) {
+             return res.status(400).send("incomplete params");
+        }
 
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
 
@@ -160,8 +160,18 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                     
                 if (isNonceValid){
                     if (await createNonce(nonce,timestamp, dbNonce)){
-                            console.log(`POST transaction .... correct`);
-                            await dbTransaction.create(req.body);
+                            try{
+                                const user = await dbUsers.findOne({username}); //comprueba que existe usuario   
+                                if(!user || user.password_resume !== password){
+                                    return res.status(401).send("unautorized");
+                                }else{
+                                    const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '1h' }); //crea token
+                                    return res.status(200).json({ token });
+                                }
+                                
+                            }catch{
+                                return res.sendStatus(500);
+                            }
 
                     } else {
                             return res.status(400).send("Error creating the nonce in the db");
@@ -173,25 +183,6 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                     console.log(error);
                     return res.sendStatus(500, "Server Error");
                 }
-
-        
-
-
-
-
-        if(!username || !password){
-           return res.status(400).send("missing fields");
-        }
-        try{
-        const user = await dbUsers.findOne({username}); //comprueba que existe usuario   
-        if(!user || user.password_resume !== password){
-            return res.status(401).send("unautorized");
-        }
-        const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '1h' }); //crea token
-        res.status(200).json({ token });
-        }catch{
-            return res.sendStatus(500);
-        }
     });
 
 
@@ -202,6 +193,10 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         const timestamp=req.headers.timestamp;
         const nonce=req.headers.nonce;
         const hmac=req.headers.hmac;
+
+         if (!(username && password && timestamp && nonce && hmac)) {
+             return res.status(400).send("incomplete params");
+        }
 
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
 
@@ -217,34 +212,28 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                     
                 if (isNonceValid){
                     if (await createNonce(nonce,timestamp, dbNonce)){
-                            console.log(`POST transaction .... correct`);
-                            await dbTransaction.create(req.body);
+                            try {
+                                if (await dbUsers.findOne({ username })) {
+                                    return res.status(409).send("User already exists")
+                                };
+                                await dbUsers.create({ username, password_resume: password});
+                                return res.status(201).send("user created");
+                            } catch (err) {
+                                return res.sendStatus(500);
+                            }
                             
                     } else {
                             return res.status(400).send("Error creating the nonce in the db");
-                        }
+                    }
                 }else{
                     return res.status(400).send("Nonce is not valid");
-                    }
-            } catch (error) {
-                    console.log(error);
-                    return res.sendStatus(500, "Server Error");
-            }
-
-        
-        if(!username || !password){
-           return res.status(400).send("missing fields");
+                }
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(500, "Server Error");
         }
-        //implementar mas tarde validacion para contraseña
-         try {
-            if (await dbUsers.findOne({ username })) {
-            return res.status(409).send("User already exists")};
-            await dbUsers.create({ username, password_resume: password});
-            res.status(201).send("user created");
-        } catch (err) {
-            res.sendStatus(500);
-    }
     });
+    
 
     //Añadir auth como segundo argumento en las rutas que a proteger:
     //ejemplo: app.get(URL_BASE_API + "/Users", auth, async (req, res) => { ... });

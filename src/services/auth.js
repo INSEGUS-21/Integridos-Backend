@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
-export const JWT_SECRET = process.env.JWT_SECRET; //clave con la que se firman los tokens
+export const JWT_SECRET = process.env.JWT_SECRET || "secret"; //clave con la que se firman los tokens
 
 export function auth(req, res, next){
     const header = req.headers.authorization || ''; //cabezera autorizacion de peticion cliente
