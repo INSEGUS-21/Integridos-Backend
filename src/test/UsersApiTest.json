@@ -761,7 +761,7 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/Users",
+          "raw": "{{base_url}}/Admin/Users",
           "host": [
             "{{base_url}}"
           ],
