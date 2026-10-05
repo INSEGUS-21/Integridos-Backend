@@ -95,54 +95,63 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
     });
 
     //login
-    app.post(URL_BASE_API+"/login", limiter, async (req, res) => {
-        const {username, password} = req.body;
-
-        const timestamp=req.headers.timestamp;
-        const nonce=req.headers.nonce;
-        const hmac=req.headers.hmac;
+    app.post(URL_BASE_API + "/login", limiter, async (req, res) => {
+        const { username, password } = req.body;
+        const timestamp = req.headers.timestamp;
+        const nonce = req.headers.nonce;
+        const hmac = req.headers.hmac;
 
         if (!(username && password && timestamp && nonce && hmac)) {
-             return res.status(400).send("incomplete params");
+            return res.status(400).send("incomplete params");
         }
 
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
-
         const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
-                    .update(`${timestamp}.${nonce}.`).update(req.rawBody|| '').digest();
+            .update(`${timestamp}.${nonce}.`).update(req.rawBody || '').digest();
 
-        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
-                    return res.status(403).send("HMAC is not the same, integrity problem");
+        console.time("Login-HMAC-Check");
+        const isHmacLengthEqual = hmacBuffer.length === hmacBackendBuffer.length;
+        const isHmacValid = isHmacLengthEqual && crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer);
+        console.timeEnd("Login-HMAC-Check");
+
+        if (!isHmacValid) {
+            return res.status(403).send("HMAC is not the same, integrity problem");
         }
 
         try {
-                const isNonceValid=await validNonce(nonce, timestamp, dbNonce);
-                    
-                if (isNonceValid){
-                    if (await createNonce(nonce,timestamp, dbNonce)){
-                            try{
-                                const user = await dbUsers.findOne({username}); //comprueba que existe usuario   
-                                if(!user || user.password_resume !== password){
-                                    return res.status(401).send("unautorized");
-                                }else{
-                                    const token = jwt.sign({ sub: user._id, tv: user.tokenVersion ?? 0 }, JWT_SECRET, { expiresIn: '1h' });   //crea token (ahora agrega tokenversion para invalidar tokens)
-                                    return res.status(200).json({ token });
-                                }
-                                
-                            }catch{
-                                return res.sendStatus(500);
-                            }
+            const isNonceValid = await validNonce(nonce, timestamp, dbNonce);
+            if (!isNonceValid) return res.status(400).send("Nonce is not valid");
 
-                    } else {
-                            return res.status(400).send("Error creating the nonce in the db");
-                        }
-                }else{
-                    return res.status(400).send("Nonce is not valid");
-                    }
-                } catch (error) {
-                    console.log(error);
-                    return res.sendStatus(500, "Server Error");
+            if (!(await createNonce(nonce, timestamp, dbNonce))) {
+                return res.status(400).send("Error creating the nonce in the db");
+            }
+
+            const user = await dbUsers.findOne({ username });
+
+            console.time("Login-Password-Check");
+            let isPasswordCorrect = false;
+
+            if (user && user.password_resume) {
+                const userPassBuf = Buffer.from(user.password_resume, 'hex');
+                const inputPassBuf = Buffer.from(password || '', 'hex');
+
+                if (userPassBuf.length === inputPassBuf.length) {
+                    isPasswordCorrect = crypto.timingSafeEqual(userPassBuf, inputPassBuf);
                 }
+            }
+            console.timeEnd("Login-Password-Check");
+
+            if (!user || !isPasswordCorrect) {
+                return res.status(401).send("unautorized");
+            }
+
+            const token = jwt.sign({ sub: user._id, tv: user.tokenVersion ?? 0 }, JWT_SECRET, { expiresIn: '1h' });
+            return res.status(200).json({ token });
+
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
     });
 
     //logout
