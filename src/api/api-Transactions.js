@@ -9,6 +9,7 @@ const SECRET_KEY = process.env.SECRET_KEY||"6570c68f92088ef05cff0196036dd3cff6e9
 
 export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
 
+    // PARA DEBUG
     app.get(BASE_URL+"/transactions",auth, checkUserExists,async  (req,res)=>{
         console.log("GET transactions....")
         try {
@@ -20,23 +21,6 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
             return res.sendStatus(500, "Server Error")
         }
     });
-
-    app.get(BASE_URL+"/transactions/:id",auth, checkUserExists, async (req,res)=>{
-        const id= req.params.id; 
-        console.log(`GET transaction ${id} ....`)
-        try {
-            const data=await dbTransaction.findOne({_id:id});
-            if (data){
-                console.log(`GET transaction ${id} ....correct`)
-                return res.status(200).json(data); 
-            }else{
-                return res.sendStatus(404, "Transaction not found")
-            }
-        } catch (error) {
-            console.log(error);
-            return res.sendStatus(500, "Server Error")   
-        }        
-    })
 
     app.post(BASE_URL+"/transactions",auth,checkUserExists, async (req,res)=>{
         console.log(`POST transactions ....`)
@@ -76,37 +60,6 @@ export const loadTransactionApi=async  (app, dbTransaction, dbNonce) =>{
             return res.sendStatus(500, "Server Error");
         }
         
-    });
-
-    app.delete(BASE_URL+"/transactions",auth, checkUserExists, async (req,res)=>{
-        console.log(`DELETE Transactions ....`)
-        try {
-            await dbTransaction.deleteMany({});
-            console.log(`DELETE Transactions .... correct`)
-            return res.sendStatus(200);
-        } catch (error) {
-            console.log(error);
-            return res.sendStatus(500, "Server Error");
-        }
-        
-    });
-
-    app.delete(BASE_URL+"/transactions/:id",auth, checkUserExists, async (req, res)=>{
-        const id= req.params.id; 
-        console.log(`DELETE Transaction ${id}....`)
-        try {
-            const iddb=await dbTransaction.findOne({_id:id});
-            if (iddb){
-                await dbTransaction.deleteOne({_id:id});
-                console.log(`DELETE Transaction ....correct `)
-                return res.sendStatus(200); 
-            } else{
-                return res.sendStatus(404, "Transaction not found")
-            }
-        } catch (error) {
-            console.log(error);
-            return res.sendStatus(500, "Server Error")   
-        }    
     });
 
 
