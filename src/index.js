@@ -9,9 +9,7 @@ import mongoose from 'mongoose';
 
 
 const app=express()
-const PORT=process.env.PORT || 3000;
-
-//const redisClient=new Redis();
+const PORT=process.env.PORT || 8080;
 
 
 app.use(cors()); 
@@ -43,7 +41,8 @@ const UserSchema= new mongoose.Schema({
         unique: true
     },
     password_resume: String,
-    tokenVersion: { type: Number, default: 0 }
+    tokenVersion: { type: Number, default: 0 },
+    salt: String
 });
 
 const NonceSchema= new mongoose.Schema({

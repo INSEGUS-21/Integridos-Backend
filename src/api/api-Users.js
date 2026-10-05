@@ -40,7 +40,6 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         try{
             const count = await dbUsers.countDocuments();
             if (count > 0) return res.sendStatus(409);
-            const csvData = [];
             const rows = [];
             fs.createReadStream('./data/usersData.csv')
             .pipe(csv())
@@ -50,13 +49,14 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
             .on('end', async () => {
                 try {
                     const hashedUsers = await Promise.all(
-                        rows.map(async (user) => {
+                        rows.map( (user) => {
+                            const salt = crypto.randomBytes(16).toString('hex')
                             if (user.password_resume) {
-                                let hashedPassword = user.password_resume
+                                let hashedPassword = user.password_resume + salt
                                 for(let i = 0; i<3;i++ ){
                                     hashedPassword = crypto.createHash('sha256').update(hashedPassword).digest('hex');
                                 }
-                                return { ...user, password_resume: hashedPassword };
+                                return { ...user, password_resume: hashedPassword , salt: salt};
                             }
                             return user;
                         })
@@ -77,7 +77,7 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
 
     });
 
-    //get de todos los users
+    //SOLO PARA PRUEBAS Y PARA CORREGIR
     app.get(URL_BASE_API + "/Users", async (req, res) => {
     try{
         let users =  await dbUsers.find({});
@@ -88,111 +88,70 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
     } 
     });
     
-    //get de 1 user
-    app.get(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
-        try{
-            let user= await dbUsers.findById(req.params.id);
-            if(!user){
-                res.status(404).send("no existe usuario");
-            }else{
-                res.status(200).json(user);
-            }
-        }catch(err){
-            res.sendStatus(500);
-        }
-    });
-
     //post prohibido
 
     app.post(URL_BASE_API+"/Users/:id", auth, async (req, res) => {
         res.sendStatus(405);
     });
 
-    //delete de 1 user
-    app.delete(URL_BASE_API + "/Users/:id", auth, async (req, res) => {
-        try {
-            const deleted = await dbUsers.findByIdAndDelete(req.params.id);
-            if (!deleted) {
-                return res.status(404).send("no existe usuario");
-            }
-            res.sendStatus(204);
-        } catch (err) {
-            console.error(err);
-            res.sendStatus(500);
-        }
-    });
-
-    //delete TODO ADMIN
-
-    app.delete(URL_BASE_API + "/Admin/Users", async (req, res) => {
-    try {
-        await dbUsers.deleteMany({});
-        res.sendStatus(204);
-    } catch (err) {
-        console.error(err);
-        res.sendStatus(500);
-    }
-    });
-
-    app.delete(URL_BASE_API + "/Users", auth, async (req, res) => {
-    try {
-        await dbUsers.deleteMany({});
-        res.sendStatus(204);
-    } catch (err) {
-        console.error(err);
-        res.sendStatus(500);
-    }
-    });
-
     //login
-    app.post(URL_BASE_API+"/login", limiter, async (req, res) => {
-        const {username, password} = req.body;
-
-        const timestamp=req.headers.timestamp;
-        const nonce=req.headers.nonce;
-        const hmac=req.headers.hmac;
+    app.post(URL_BASE_API + "/login", limiter, async (req, res) => {
+        const { username, password } = req.body;
+        const timestamp = req.headers.timestamp;
+        const nonce = req.headers.nonce;
+        const hmac = req.headers.hmac;
 
         if (!(username && password && timestamp && nonce && hmac)) {
-             return res.status(400).send("incomplete params");
+            return res.status(400).send("incomplete params");
         }
 
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
-
         const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
-                    .update(`${timestamp}.${nonce}.`).update(req.rawBody|| '').digest();
+            .update(`${timestamp}.${nonce}.`).update(req.rawBody || '').digest();
 
-        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
-                    return res.status(403).send("HMAC is not the same, integrity problem");
+        console.time("Login-HMAC-Check");
+        const isHmacLengthEqual = hmacBuffer.length === hmacBackendBuffer.length;
+        const isHmacValid = isHmacLengthEqual && crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer);
+        console.timeEnd("Login-HMAC-Check");
+
+        if (!isHmacValid) {
+            return res.status(403).send("HMAC is not the same, integrity problem");
         }
 
         try {
-                const isNonceValid=await validNonce(nonce, timestamp, dbNonce);
-                    
-                if (isNonceValid){
-                    if (await createNonce(nonce,timestamp, dbNonce)){
-                            try{
-                                const user = await dbUsers.findOne({username}); //comprueba que existe usuario   
-                                if(!user || user.password_resume !== password){
-                                    return res.status(401).send("unautorized");
-                                }else{
-                                    const token = jwt.sign({ sub: user._id, tv: user.tokenVersion ?? 0 }, JWT_SECRET, { expiresIn: '1h' });   //crea token (ahora agrega tokenversion para invalidar tokens)
-                                    return res.status(200).json({ token });
-                                }
-                                
-                            }catch{
-                                return res.sendStatus(500);
-                            }
+            const isNonceValid = await validNonce(nonce, timestamp, dbNonce);
+            if (!isNonceValid) return res.status(400).send("Nonce is not valid");
 
-                    } else {
-                            return res.status(400).send("Error creating the nonce in the db");
-                        }
-                }else{
-                    return res.status(400).send("Nonce is not valid");
-                    }
-                } catch (error) {
-                    console.log(error);
-                    return res.sendStatus(500, "Server Error");
+            if (!(await createNonce(nonce, timestamp, dbNonce))) {
+                return res.status(400).send("Error creating the nonce in the db");
+            }
+
+            const user = await dbUsers.findOne({ username });
+
+            console.time("Login-Password-Check");
+            let isPasswordCorrect = false;
+
+            if (user && user.password_resume) {
+                const userPassBuf = Buffer.from(user.password_resume, 'hex');
+                const inputPassBuf = Buffer.from(password || '', 'hex');
+
+                if (userPassBuf.length === inputPassBuf.length) {
+                    isPasswordCorrect = crypto.timingSafeEqual(userPassBuf, inputPassBuf);
                 }
+            }
+            console.timeEnd("Login-Password-Check");
+
+            if (!user || !isPasswordCorrect) {
+                return res.status(401).send("unautorized");
+            }
+
+            const token = jwt.sign({ sub: user._id, tv: user.tokenVersion ?? 0 }, JWT_SECRET, { expiresIn: '1h' });
+            return res.status(200).json({ token });
+
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
     });
 
     //logout
@@ -241,15 +200,16 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         const timestamp=req.headers.timestamp;
         const nonce=req.headers.nonce;
         const hmac=req.headers.hmac;
+        const salt=req.headers.salt;
 
-         if (!(username && password && timestamp && nonce && hmac)) {
+         if (!(username && password && timestamp && nonce && hmac && salt)) {
              return res.status(400).send("incomplete params");
         }
 
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
 
         const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
-                    .update(`${timestamp}.${nonce}.`).update(req.rawBody|| '').digest();
+                    .update(`${timestamp}.${nonce}.${salt}.`).update(req.rawBody|| '').digest();
 
         if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
                     return res.status(403).send("HMAC is not the same, integrity problem");
@@ -264,7 +224,7 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                                 if (await dbUsers.findOne({ username })) {
                                     return res.status(409).send("User already exists")
                                 };
-                                await dbUsers.create({ username, password_resume: password});
+                                await dbUsers.create({ username, password_resume: password, salt: salt});
                                 return res.status(201).send("user created");
                             } catch (err) {
                                 return res.sendStatus(500);
@@ -282,6 +242,44 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         }
     });
     
+    app.get(URL_BASE_API+"/getUserSalt/:username", async (req, res) => {
+        const timestamp = req.headers.timestamp;
+        const nonce = req.headers.nonce;
+        const hmac = req.headers.hmac;
+        const username_param = req.params.username;
+
+        if (!(timestamp && nonce && hmac && username_param)) {
+            return res.status(400).send("incomplete params");
+        }
+
+        const hmacBuffer = Buffer.from(hmac, 'hex');
+
+        const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
+                    .update(`${timestamp}.${nonce}.`).digest();
+
+        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
+            return res.status(403).send("HMAC is not the same, integrity problem");
+        }
+        
+        try{
+            const isNonceValid = await validNonce(nonce, timestamp, dbNonce);
+            if (!isNonceValid) {
+                return res.status(400).send("Nonce is not valid");
+            }
+            if (!(await createNonce(nonce, timestamp, dbNonce))) {
+                return res.status(400).send("Error creating the nonce in the db");
+            }
+
+            let user = await dbUsers.findOne({ username: username_param });
+            if(!user){
+                res.status(404).send("no existe usuario");
+            }else{
+                return res.status(200).json({ salt: user.salt });
+            }
+        }catch(err){
+            res.sendStatus(500);
+        }
+    });
 
     //Añadir auth como segundo argumento en las rutas que a proteger:
     //ejemplo: app.get(URL_BASE_API + "/Users", auth, async (req, res) => { ... });
