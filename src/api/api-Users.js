@@ -200,7 +200,7 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
         const hmacBuffer = Buffer.from(hmac || '', 'hex');
 
         const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
-                    .update(`${timestamp}.${nonce}.${salt}`).update(req.rawBody|| '').digest();
+                    .update(`${timestamp}.${nonce}.${salt}.`).update(req.rawBody|| '').digest();
 
         if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
                     return res.status(403).send("HMAC is not the same, integrity problem");
