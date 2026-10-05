@@ -28,7 +28,7 @@ export async function validNonce(nonce_input, timeStamp_input, dbNonce){
 
 export async function createNonce(nonce_input, timeStamp_input, dbNonce){
     try{
-        await dbNonce.create({nonce: nonce_input, timeStamp: timeStamp_input});
+        await dbNonce.create({nonce: nonce_input});
         return true
     }catch(err){
         console.error("Critic error creating nonce on the db", err);

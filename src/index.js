@@ -38,13 +38,23 @@ const Transaction_scheme=new mongoose.Schema(
 );
 
 const UserSchema= new mongoose.Schema({
-    username: String,
+    username: {
+        type: String,
+        unique: true
+    },
     password_resume: String
 });
 
 const NonceSchema= new mongoose.Schema({
-    nonce: String,
-    timeStamp: Number 
+    nonce: {
+        type: String,
+        unique: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+        expires: 900
+    }
 });
 
 const dbNonce = conn.model('Nonce', NonceSchema);
