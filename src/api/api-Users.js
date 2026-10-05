@@ -6,6 +6,7 @@ import { rateLimit } from 'express-rate-limit'
 import { auth, JWT_SECRET } from '../services/auth.js'; // ajusta la ruta
 import { createNonce, validNonce } from '../services/serviceNonce.js';
 
+
 let URL_BASE_API = "/api/v1";
 const SECRET_KEY = process.env.SECRET_KEY||"6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b"
 
@@ -174,7 +175,7 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                                 if(!user || user.password_resume !== password){
                                     return res.status(401).send("unautorized");
                                 }else{
-                                    const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '1h' }); //crea token
+                                    const token = jwt.sign({ sub: user._id, tv: user.tokenVersion ?? 0 }, JWT_SECRET, { expiresIn: '1h' });   //crea token (ahora agrega tokenversion para invalidar tokens)
                                     return res.status(200).json({ token });
                                 }
                                 
@@ -193,6 +194,44 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                     return res.sendStatus(500, "Server Error");
                 }
     });
+
+    //logout
+    app.post(URL_BASE_API + "/logout", auth, async (req, res) => {
+        const timestamp = req.headers.timestamp;
+        const nonce = req.headers.nonce;
+        const hmac = req.headers.hmac;
+
+        if (!(timestamp && nonce && hmac)) {
+            return res.status(400).send("incomplete params");
+        }
+
+        const hmacBuffer = Buffer.from(hmac, 'hex');
+
+        const hmacBackendBuffer = crypto.createHmac('sha256', SECRET_KEY)
+                    .update(`${timestamp}.${nonce}.`).update(req.rawBody || '').digest();
+
+        if (hmacBuffer.length !== hmacBackendBuffer.length || !crypto.timingSafeEqual(hmacBuffer, hmacBackendBuffer)) {
+            return res.status(403).send("HMAC is not the same, integrity problem");
+        }
+
+        try {
+            const isNonceValid = await validNonce(nonce, timestamp, dbNonce);
+            if (!isNonceValid) {
+                return res.status(400).send("Nonce is not valid");
+            }
+            if (!(await createNonce(nonce, timestamp, dbNonce))) {
+                return res.status(400).send("Error creating the nonce in the db");
+            }
+
+            await dbUsers.updateOne({ _id: req.user.sub }, { $inc: { tokenVersion: 1 } }); //al incrementa la version del token a 1, el token se invalida aun que no halla caducado
+            return res.status(200).send("session closed");
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
+    });
+
+
 
 
     //register
