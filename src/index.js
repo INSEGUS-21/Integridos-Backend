@@ -39,7 +39,8 @@ const Transaction_scheme=new mongoose.Schema(
 
 const UserSchema= new mongoose.Schema({
     username: String,
-    password_resume: String
+    password_resume: String,
+    tokenVersion: { type: Number, default: 0 }
 });
 
 const NonceSchema= new mongoose.Schema({
