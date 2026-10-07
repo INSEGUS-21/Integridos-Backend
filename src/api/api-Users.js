@@ -79,7 +79,8 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                     res.sendStatus(500);
                 }
             })
-            .on('error', () => res.sendStatus(500));
+            .on('error', () =>{ 
+                res.sendStatus(500)});
 
         }catch(err){
             res.sendStatus(500);
