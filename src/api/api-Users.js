@@ -5,10 +5,19 @@ import crypto from 'node:crypto';
 import { rateLimit } from 'express-rate-limit'
 import { auth, JWT_SECRET } from '../services/auth.js'; // ajusta la ruta
 import { createNonce, validNonce } from '../services/serviceNonce.js';
-
+import argon2 from 'argon2';
 
 let URL_BASE_API = "/api/v1";
 const SECRET_KEY = process.env.SECRET_KEY||"6570c68f92088ef05cff0196036dd3cff6e9c17ad0e2628ba05c1071ba74135b"
+
+const ARGON_OPTS = {
+    type: argon2.argon2id,
+    memoryCost: 19456, // ~19 MiB
+    timeCost: 2,
+    parallelism: 1
+};
+
+const DUMMY_HASH = await argon2.hash('dummy-password', ARGON_OPTS);
 
 //limitar numero de intentos de login por usuario 
 const limiter = rateLimit({
@@ -49,14 +58,15 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
             .on('end', async () => {
                 try {
                     const hashedUsers = await Promise.all(
-                        rows.map( (user) => {
+                        rows.map( async (user) => {
                             const salt = crypto.randomBytes(16).toString('hex')
                             if (user.password_resume) {
                                 let hashedPassword = user.password_resume + salt
                                 for(let i = 0; i<3;i++ ){
                                     hashedPassword = crypto.createHash('sha256').update(hashedPassword).digest('hex');
                                 }
-                                return { ...user, password_resume: hashedPassword , salt: salt};
+                                const finalHash = await argon2.hash(hashedPassword, ARGON_OPTS);
+                                return { ...user, password_resume: finalHash, salt: salt };
                             }
                             return user;
                         })
@@ -130,18 +140,16 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
 
             console.time("Login-Password-Check");
             let isPasswordCorrect = false;
-
-            if (user && user.password_resume) {
-                const userPassBuf = Buffer.from(user.password_resume, 'hex');
-                const inputPassBuf = Buffer.from(password || '', 'hex');
-
-                if (userPassBuf.length === inputPassBuf.length) {
-                    isPasswordCorrect = crypto.timingSafeEqual(userPassBuf, inputPassBuf);
-                }
+            try {
+                const hashToCheck = user?.password_resume || DUMMY_HASH;
+                const ok = await argon2.verify(hashToCheck, password);
+                isPasswordCorrect = ok && !!user;
+            } catch (e) {
+                isPasswordCorrect = false;
             }
             console.timeEnd("Login-Password-Check");
 
-            if (!user || !isPasswordCorrect) {
+            if (!isPasswordCorrect) {
                 return res.status(401).send("unautorized");
             }
 
@@ -224,7 +232,8 @@ export function loadBackendApiUsers(app,dbUsers,dbNonce){
                                 if (await dbUsers.findOne({ username })) {
                                     return res.status(409).send("User already exists")
                                 };
-                                await dbUsers.create({ username, password_resume: password, salt: salt});
+                                const storedHash = await argon2.hash(password, ARGON_OPTS);
+                                await dbUsers.create({ username, password_resume: storedHash, salt: salt });
                                 return res.status(201).send("user created");
                             } catch (err) {
                                 return res.sendStatus(500);
